@@ -24,17 +24,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 20
+      - name: Set up Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version: 22
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
-        run: npm install
+        run: bun install || npm install --legacy-peer-deps
 
       - name: Build production bundle for GitHub Pages
-        run: npm run build
+        run: bun run build || npx vite build --base=./
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
