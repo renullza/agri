@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Copy, Check, Terminal, GitBranch, Globe, FileCode } from 'lucide-react';
 
 export const GitHubDeployGuide: React.FC = () => {
-  const [githubUser, setGithubUser] = useState<string>('your-username');
-  const [repoName, setRepoName] = useState<string>('azarkesht-sentinel');
+  const [githubUser, setGithubUser] = useState<string>('renullza');
+  const [repoName, setRepoName] = useState<string>('agri');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [deployMethod, setDeployMethod] = useState<'actions' | 'gh-pages'>('actions');
 
@@ -59,17 +59,38 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 20
+      - name: Set up Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version: 22
 
-      - name: Install dependencies
-        run: npm install
+      - name: Normalize package.json for public npm & Install
+        run: |
+          node -e '
+            const fs = require("fs");
+            const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            pkg.dependencies = {
+              "react": "^19.0.0",
+              "react-dom": "^19.0.0",
+              "lucide-react": "^0.475.0"
+            };
+            pkg.devDependencies = {
+              "@tailwindcss/vite": "^4.0.9",
+              "@types/node": "^22.10.0",
+              "@types/react": "^19.0.0",
+              "@types/react-dom": "^19.0.0",
+              "@vitejs/plugin-react": "^4.3.4",
+              "tailwindcss": "^4.0.9",
+              "typescript": "^5.7.3",
+              "vite": "^6.2.0"
+            };
+            fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2));
+          '
+          rm -f bun.lock package-lock.json
+          npm install --legacy-peer-deps
 
       - name: Build production bundle with base path
-        run: npx vite build --base=/${cleanRepo}/
+        run: npx vite build --base=./
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

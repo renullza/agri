@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Upload, Cpu, RefreshCw, Download, Sliders, CheckCircle2 } from 'lucide-react';
+import { Upload, Cpu, RefreshCw, Download, Sliders, CheckCircle2, Satellite } from 'lucide-react';
+import { fetchAndAnalyzeLiveSatelliteTiles } from '../utils/liveSentinelService';
 import eastAzSatelliteImg from '../assets/images/satellite_east_azerbaijan_1791362534077.jpg';
 import westIranSatelliteImg from '../assets/images/satellite_west_iran_1791362545190.jpg';
 import soilSampleImg from '../assets/images/soil_spectral_sample_1791362555085.jpg';
@@ -203,6 +204,25 @@ export const CustomImageLab: React.FC = () => {
     a.click();
   };
 
+  const handleFetchLiveFromOrbit = async (lat: number, lon: number, label: string) => {
+    setIsProcessing(true);
+    setImageTitle(`در حال دریافت زنده از مدار (${label})...`);
+    try {
+      const res = await fetchAndAnalyzeLiveSatelliteTiles(
+        lat,
+        lon,
+        15,
+        'esri-world',
+        null,
+        eastAzSatelliteImg
+      );
+      setImageTitle(`تصویر زنده ماهواره‌ای — ${label} (${lat}°N, ${lon}°E)`);
+      setImageSrc(res.canvasDataUrl);
+    } catch {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Top Action & Upload Header */}
@@ -212,14 +232,30 @@ export const CustomImageLab: React.FC = () => {
             آزمایشگاه پردازش تصویر ماهواره‌ای و پهپادی (Pixel-Level CNN & Spectral Engine)
           </h2>
           <p className="text-sm text-slate-400 mt-1">
-            تصویر ماهواره‌ای (Sentinel-2 / Landsat) یا عکس هوایی پهپاد از مزرعه خود را بارگذاری کنید تا الگوریتم افراز طیفی، درصد پوشش گیاهی، خاک لخت و نقاط دارای تنش کودی را در مرورگر محاسبه کند.
+            تصویر ماهواره‌ای را مستقیماً از مدار فراخوانی کنید یا عکس هوایی مزرعه خود را بارگذاری نمایید تا الگوریتم افراز طیفی، درصد پوشش گیاهی، خاک لخت و نقاط دارای تنش کودی را محاسبه کند.
           </p>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0 flex-wrap">
+        <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+          <button
+            type="button"
+            onClick={() => handleFetchLiveFromOrbit(37.9408, 47.5367, 'دشت سراب')}
+            className="px-3.5 py-2 bg-cyan-950/70 hover:bg-cyan-900/70 text-cyan-300 border border-cyan-500/40 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <Satellite className="w-4 h-4" />
+            <span>دریافت زنده ماهواره (سراب)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleFetchLiveFromOrbit(36.9694, 46.1027, 'دشت میاندوآب')}
+            className="px-3.5 py-2 bg-cyan-950/70 hover:bg-cyan-900/70 text-cyan-300 border border-cyan-500/40 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <Satellite className="w-4 h-4" />
+            <span>دریافت زنده ماهواره (میاندوآب)</span>
+          </button>
           <label className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded-md cursor-pointer transition-colors flex items-center gap-2 whitespace-nowrap">
             <Upload className="w-4 h-4" />
-            <span>بارگذاری تصویر ماهواره / پهپاد</span>
+            <span>بارگذاری تصویر دلخواه</span>
             <input
               type="file"
               accept="image/*"
@@ -232,7 +268,7 @@ export const CustomImageLab: React.FC = () => {
             className="px-3.5 py-2 bg-[#0F172A] hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-medium rounded-md transition-colors flex items-center gap-2 whitespace-nowrap"
           >
             <Download className="w-4 h-4 text-emerald-400" />
-            <span>خروجی نقشه افرازشده (PNG)</span>
+            <span>خروجی PNG</span>
           </button>
         </div>
       </div>

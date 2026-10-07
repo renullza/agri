@@ -1,9 +1,6 @@
 import eastAzSatelliteImg from '../assets/images/satellite_east_azerbaijan_1791362534077.jpg';
 import westIranSatelliteImg from '../assets/images/satellite_west_iran_1791362545190.jpg';
 
-import eastAzSatelliteImg from '../assets/images/satellite_east_azerbaijan_1791362534077.jpg';
-import westIranSatelliteImg from '../assets/images/satellite_west_iran_1791362545190.jpg';
-
 export interface ParcelZone {
   id: string;
   name: string;

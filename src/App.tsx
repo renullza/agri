@@ -14,6 +14,7 @@ import {
 import { SatelliteCanvasMap, SpectralLayerType } from './components/SatelliteCanvasMap';
 import { CustomImageLab } from './components/CustomImageLab';
 import { GitHubDeployGuide } from './components/GitHubDeployGuide';
+import { LiveSentinelScene, LiveTileExtractionResult } from './utils/liveSentinelService';
 import soilSampleImg from './assets/images/soil_spectral_sample_1791362555085.jpg';
 import {
   Download,
@@ -66,6 +67,15 @@ export default function App() {
   const [pumpFlowLps, setPumpFlowLps] = useState<number>(24);
   const [soilImgError, setSoilImgError] = useState<boolean>(false);
 
+  // Live Satellite STAC & Tile Extraction State
+  const [liveExtraction, setLiveExtraction] = useState<LiveTileExtractionResult | null>(null);
+  const [liveSceneMeta, setLiveSceneMeta] = useState<LiveSentinelScene | null>(null);
+  const [activeCoords, setActiveCoords] = useState<{ lat: number; lon: number }>({
+    lat: REGIONS_DATA[0].lat,
+    lon: REGIONS_DATA[0].lon,
+  });
+  const [useLivePixelCalibration, setUseLivePixelCalibration] = useState<boolean>(true);
+
   // Live Open-Meteo FAO-56 Weather State
   const [liveMeteo, setLiveMeteo] = useState<{
     dates: string[];
@@ -84,6 +94,7 @@ export default function App() {
       setSelectedParcelId(reg.parcels[0].id);
       setCustomAreaHa(reg.parcels[0].areaHa);
       setSelectedCropId(reg.defaultCropId);
+      setActiveCoords({ lat: reg.lat, lon: reg.lon });
       const cr = CROP_PARAMETERS.find((c) => c.id === reg.defaultCropId);
       if (cr) setTargetYieldTonHa(cr.defaultTargetYieldTonHa);
     }
@@ -100,11 +111,11 @@ export default function App() {
     if (cr) setTargetYieldTonHa(cr.defaultTargetYieldTonHa);
   };
 
-  // Fetch real-time 7-day agro-meteorological forecast from Open-Meteo API (CORS-enabled, no API key required for GitHub Pages)
+  // Fetch real-time 7-day agro-meteorological forecast from Open-Meteo API for active satellite coordinates
   useEffect(() => {
     let isMounted = true;
     setMeteoLoading(true);
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${selectedRegion.lat}&longitude=${selectedRegion.lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration&timezone=Asia%2FTehran`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${activeCoords.lat}&longitude=${activeCoords.lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration&timezone=Asia%2FTehran`;
 
     fetch(url)
       .then((res) => {
@@ -134,20 +145,38 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, [selectedRegion.lat, selectedRegion.lon]);
+  }, [activeCoords.lat, activeCoords.lon]);
+
+  // Dynamically blend parcel baseline with live satellite pixel extraction when enabled
+  const effectiveParcel: ParcelZone = useMemo(() => {
+    if (!useLivePixelCalibration || !liveExtraction) return selectedParcel;
+    return {
+      ...selectedParcel,
+      bands: {
+        B2_Blue: Number(((selectedParcel.bands.B2_Blue * 0.45) + (liveExtraction.extractedBands.B2_Blue * 0.55)).toFixed(3)),
+        B3_Green: Number(((selectedParcel.bands.B3_Green * 0.45) + (liveExtraction.extractedBands.B3_Green * 0.55)).toFixed(3)),
+        B4_Red: Number(((selectedParcel.bands.B4_Red * 0.45) + (liveExtraction.extractedBands.B4_Red * 0.55)).toFixed(3)),
+        B5_RedEdge1: Number(((selectedParcel.bands.B5_RedEdge1 * 0.45) + (liveExtraction.extractedBands.B5_RedEdge1 * 0.55)).toFixed(3)),
+        B8_NIR: Number(((selectedParcel.bands.B8_NIR * 0.45) + (liveExtraction.extractedBands.B8_NIR * 0.55)).toFixed(3)),
+        B8A_NarrowNIR: Number(((selectedParcel.bands.B8A_NarrowNIR * 0.45) + (liveExtraction.extractedBands.B8A_NarrowNIR * 0.55)).toFixed(3)),
+        B11_SWIR1: Number(((selectedParcel.bands.B11_SWIR1 * 0.45) + (liveExtraction.extractedBands.B11_SWIR1 * 0.55)).toFixed(3)),
+        B12_SWIR2: Number(((selectedParcel.bands.B12_SWIR2 * 0.45) + (liveExtraction.extractedBands.B12_SWIR2 * 0.55)).toFixed(3)),
+      },
+    };
+  }, [selectedParcel, liveExtraction, useLivePixelCalibration]);
 
   // Derived Spectral, Fertilizer, and Irrigation models
-  const indices = useMemo(() => calculateSpectralIndices(selectedParcel), [selectedParcel]);
+  const indices = useMemo(() => calculateSpectralIndices(effectiveParcel), [effectiveParcel]);
 
   const fertilizerPrescription = useMemo(
     () =>
       generateFertilizerPrescription(
-        selectedParcel,
+        effectiveParcel,
         selectedCrop,
         targetYieldTonHa,
         customAreaHa
       ),
-    [selectedParcel, selectedCrop, targetYieldTonHa, customAreaHa]
+    [effectiveParcel, selectedCrop, targetYieldTonHa, customAreaHa]
   );
 
   const selectedIrrigationSys =
@@ -156,14 +185,14 @@ export default function App() {
   const irrigationPlan = useMemo(
     () =>
       computeIrrigationSchedule(
-        selectedParcel,
+        effectiveParcel,
         selectedCrop,
         selectedIrrigationSys.efficiencyPct,
         pumpFlowLps,
         customAreaHa,
         liveMeteo
       ),
-    [selectedParcel, selectedCrop, selectedIrrigationSys, pumpFlowLps, customAreaHa, liveMeteo]
+    [effectiveParcel, selectedCrop, selectedIrrigationSys, pumpFlowLps, customAreaHa, liveMeteo]
   );
 
   // Export complete farm prescription report as JSON
@@ -200,14 +229,14 @@ export default function App() {
   };
 
   const spectralBandsChartData = [
-    { band: 'B2 Blue', wl: '490nm', val: selectedParcel.bands.B2_Blue, ref: 0.041 },
-    { band: 'B3 Green', wl: '560nm', val: selectedParcel.bands.B3_Green, ref: 0.075 },
-    { band: 'B4 Red', wl: '665nm', val: selectedParcel.bands.B4_Red, ref: 0.048 },
-    { band: 'B5 RedEdge', wl: '705nm', val: selectedParcel.bands.B5_RedEdge1, ref: 0.165 },
-    { band: 'B8 NIR', wl: '842nm', val: selectedParcel.bands.B8_NIR, ref: 0.465 },
-    { band: 'B8A Narrow', wl: '865nm', val: selectedParcel.bands.B8A_NarrowNIR, ref: 0.485 },
-    { band: 'B11 SWIR1', wl: '1610nm', val: selectedParcel.bands.B11_SWIR1, ref: 0.195 },
-    { band: 'B12 SWIR2', wl: '2190nm', val: selectedParcel.bands.B12_SWIR2, ref: 0.108 },
+    { band: 'B2 Blue', wl: '490nm', val: effectiveParcel.bands.B2_Blue, ref: 0.041 },
+    { band: 'B3 Green', wl: '560nm', val: effectiveParcel.bands.B3_Green, ref: 0.075 },
+    { band: 'B4 Red', wl: '665nm', val: effectiveParcel.bands.B4_Red, ref: 0.048 },
+    { band: 'B5 RedEdge', wl: '705nm', val: effectiveParcel.bands.B5_RedEdge1, ref: 0.165 },
+    { band: 'B8 NIR', wl: '842nm', val: effectiveParcel.bands.B8_NIR, ref: 0.465 },
+    { band: 'B8A Narrow', wl: '865nm', val: effectiveParcel.bands.B8A_NarrowNIR, ref: 0.485 },
+    { band: 'B11 SWIR1', wl: '1610nm', val: effectiveParcel.bands.B11_SWIR1, ref: 0.195 },
+    { band: 'B12 SWIR2', wl: '2190nm', val: effectiveParcel.bands.B12_SWIR2, ref: 0.108 },
   ];
 
   return (
@@ -355,26 +384,41 @@ export default function App() {
               })}
             </div>
 
-            {/* Clean Unboxed Telemetry Metadata */}
+            {/* Clean Unboxed Telemetry Metadata (Live Copernicus STAC Connected) */}
             <div className="mt-4 pt-3 border-t border-slate-800 space-y-1.5 text-xs text-slate-400">
               <div className="flex items-center justify-between">
-                <span>گذر ماهواره:</span>
-                <span className="font-mono text-slate-200" dir="ltr">
-                  {selectedRegion.acquisitionDate}
+                <span>وضعیت ارتباط ماهواره:</span>
+                <span className="font-mono text-emerald-400">
+                  {liveSceneMeta ? '● متصل به Copernicus STAC' : '● دریافت زنده تایل مداری'}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span>پوشش ابر / ارتفاع:</span>
+                <span>آخرین گذر سنتینل:</span>
                 <span className="font-mono text-slate-200" dir="ltr">
-                  {selectedRegion.cloudCoverPct}% · {selectedRegion.elevationM}m
+                  {liveSceneMeta ? liveSceneMeta.persianDate : selectedRegion.acquisitionDate}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span>مختصات UTM:</span>
-                <span className="font-mono text-emerald-400 text-[11px]" dir="ltr">
-                  {selectedRegion.utmZone}
+                <span>پوشش ابر / تایل:</span>
+                <span className="font-mono text-slate-200" dir="ltr">
+                  {liveSceneMeta ? `${liveSceneMeta.cloudCover}% · ${liveSceneMeta.mgrsTile}` : `${selectedRegion.cloudCoverPct}% · ${selectedRegion.elevationM}m`}
                 </span>
               </div>
+              <div className="flex items-center justify-between">
+                <span>مختصات فعال:</span>
+                <span className="font-mono text-cyan-400 text-[11px]" dir="ltr">
+                  {activeCoords.lat.toFixed(4)}°N, {activeCoords.lon.toFixed(4)}°E
+                </span>
+              </div>
+              <label className="flex items-center justify-between pt-2 border-t border-slate-800/80 cursor-pointer">
+                <span className="text-slate-300">کالیبراسیون خودکار با پیکسل زنده:</span>
+                <input
+                  type="checkbox"
+                  checked={useLivePixelCalibration}
+                  onChange={(e) => setUseLivePixelCalibration(e.target.checked)}
+                  className="accent-emerald-500 w-4 h-4 cursor-pointer"
+                />
+              </label>
             </div>
           </div>
 
@@ -584,10 +628,15 @@ export default function App() {
               {/* Interactive Sentinel-2 / Sentinel-1 Canvas Map */}
               <SatelliteCanvasMap
                 region={selectedRegion}
-                selectedParcel={selectedParcel}
+                selectedParcel={effectiveParcel}
                 onSelectParcel={handleParcelSelect}
                 activeLayer={activeLayer}
                 onChangeLayer={setActiveLayer}
+                onLiveTelemetryUpdate={(extraction, scene, coords) => {
+                  setLiveExtraction(extraction);
+                  setLiveSceneMeta(scene);
+                  setActiveCoords(coords);
+                }}
               />
 
               {/* 6-Metric Spectral & Soil Health Readout Grid (Single-Elevation, Tabular Numerals) */}
