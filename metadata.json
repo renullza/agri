@@ -1,0 +1,6 @@
+{
+  "name": "AzarKesht Sentinel — پایش ماهواره‌ای کشاورزی آذربایجان و غرب کشور",
+  "description": "سامانه هوشمند پایش سلامت خاک، تجویز کود و پیش‌بینی زمان آبیاری با پردازش تصاویر ماهواره‌ای سنتینل-۲ و یادگیری عمیق ویژه کشاورزان آذربایجان شرقی و غرب ایران",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
