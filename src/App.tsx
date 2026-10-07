@@ -13,7 +13,6 @@ import {
 } from './utils/spectralEngine';
 import { SatelliteCanvasMap, SpectralLayerType } from './components/SatelliteCanvasMap';
 import { CustomImageLab } from './components/CustomImageLab';
-import { GitHubDeployGuide } from './components/GitHubDeployGuide';
 import { LiveSentinelScene, LiveTileExtractionResult } from './utils/liveSentinelService';
 import soilSampleImg from './assets/images/soil_spectral_sample_1791362555085.jpg';
 import {
@@ -27,7 +26,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
-type ActiveTab = 'satellite-soil' | 'fertilizer' | 'irrigation' | 'custom-lab' | 'github-deploy';
+type ActiveTab = 'satellite-soil' | 'fertilizer' | 'irrigation' | 'custom-lab';
 
 const IRRIGATION_SYSTEMS = [
   { id: 'drip', label: 'آبیاری قطره‌ای (تیپ / زیرسطحی)', efficiencyPct: 88 },
@@ -297,16 +296,6 @@ export default function App() {
           >
             پردازش تصویر دلخواه
           </button>
-          <button
-            onClick={() => setActiveTab('github-deploy')}
-            className={`py-1 transition-colors whitespace-nowrap border-b-2 ${
-              activeTab === 'github-deploy'
-                ? 'border-emerald-400 text-slate-100'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            دیپلوی گیت‌هاب
-          </button>
         </nav>
 
         {/* Zone 3: Primary action */}
@@ -328,7 +317,6 @@ export default function App() {
           { id: 'fertilizer', label: 'تجویز کود' },
           { id: 'irrigation', label: 'زمان آبیاری' },
           { id: 'custom-lab', label: 'پردازش تصویر' },
-          { id: 'github-deploy', label: 'دیپلوی گیت‌هاب' },
         ].map((t) => (
           <button
             key={t.id}
@@ -1183,9 +1171,6 @@ export default function App() {
 
           {/* TAB 4: CUSTOM IMAGE PROCESSING LAB */}
           {activeTab === 'custom-lab' && <CustomImageLab />}
-
-          {/* TAB 5: GITHUB PAGES DEPLOYMENT CENTER */}
-          {activeTab === 'github-deploy' && <GitHubDeployGuide />}
         </main>
       </div>
 

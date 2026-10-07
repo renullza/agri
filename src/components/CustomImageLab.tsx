@@ -239,6 +239,14 @@ export const CustomImageLab: React.FC = () => {
         <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
           <button
             type="button"
+            onClick={() => handleFetchLiveFromOrbit(36.1864, 49.1931, 'ابهر، خرم‌دره و هیدج')}
+            className="px-3.5 py-2 bg-cyan-950/70 hover:bg-cyan-900/70 text-cyan-300 border border-cyan-500/40 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <Satellite className="w-4 h-4" />
+            <span>دریافت زنده ماهواره (ابهر و خرم‌دره)</span>
+          </button>
+          <button
+            type="button"
             onClick={() => handleFetchLiveFromOrbit(37.9408, 47.5367, 'دشت سراب')}
             className="px-3.5 py-2 bg-cyan-950/70 hover:bg-cyan-900/70 text-cyan-300 border border-cyan-500/40 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 whitespace-nowrap"
           >
